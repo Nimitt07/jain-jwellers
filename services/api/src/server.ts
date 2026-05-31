@@ -16,6 +16,6 @@ app.use("/health", healthRouter);
 app.use("/catalogue", catalogueRouter);
 app.use("/gold-rates", goldRatesRouter);
 
-app.listen(env.PORT, () => {
-  console.log(`Jain Jewellers API running on http://127.0.0.1:${env.PORT}`);
+app.listen(env.PORT, "0.0.0.0", () => {
+  console.log(`Jain Jewellers API running on port ${env.PORT}`);
 });
