@@ -1,8 +1,0 @@
-
-> jain-jewellers@0.1.0 dev:admin
-> npm --workspace apps/admin run dev
-
-
-> @jain-jewellers/admin@0.1.0 dev
-> vite --host 127.0.0.1 --port 5174
-
