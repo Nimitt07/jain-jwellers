@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Jain Jewellers",
+    "slug": "jain-jewellers",
+    "scheme": "jainjewellers",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.jainjewellers.app"
+    },
+    "android": {
+      "package": "com.jainjewellers.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#6B0F1A"
+      }
+    },
+    "plugins": ["expo-camera", "expo-notifications"]
+  }
+}

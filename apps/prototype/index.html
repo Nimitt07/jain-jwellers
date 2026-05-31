@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jain Jewellers Online Shop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#shop" aria-label="Jain Jewellers home">
+        <span class="brand-mark">J</span>
+        <span>
+          <strong>Jain Jewellers</strong>
+          <small>Gold, diamonds and silver</small>
+        </span>
+      </a>
+
+      <nav class="main-nav" aria-label="Primary navigation">
+        <a href="#shop">Shop</a>
+        <a href="#rates">Rates</a>
+        <a href="#admin">Admin</a>
+      </nav>
+
+      <button class="cart-button" id="cartToggle" type="button" aria-label="Open cart">
+        Cart <span id="cartCount">0</span>
+      </button>
+    </header>
+
+    <main>
+      <section class="hero" id="shop">
+        <div class="hero-overlay">
+          <p class="eyebrow">Live price jewelry shopping</p>
+          <h1>Jain Jewellers</h1>
+          <p class="hero-copy">A premium online jewelry store with daily gold and silver rates, instant product pricing, and admin controls for labour, weight, percentage and descriptions.</p>
+          <div class="hero-actions">
+            <a class="primary-link" href="#catalog">Explore 50 products</a>
+            <a class="secondary-link" href="#admin">Update rates</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="rate-band" id="rates" aria-label="Current daily rates">
+        <div>
+          <p class="eyebrow">Today rate board</p>
+          <h2>Prices recalculate instantly</h2>
+        </div>
+        <div class="rate-cards" id="rateCards"></div>
+      </section>
+
+      <section class="collection-strip" aria-label="Featured collections">
+        <button class="chip active" type="button" data-filter="All">All</button>
+        <button class="chip" type="button" data-filter="Rings">Rings</button>
+        <button class="chip" type="button" data-filter="Necklaces">Necklaces</button>
+        <button class="chip" type="button" data-filter="Earrings">Earrings</button>
+        <button class="chip" type="button" data-filter="Bangles">Bangles</button>
+        <button class="chip" type="button" data-filter="Chains">Chains</button>
+        <button class="chip" type="button" data-filter="Silver">Silver</button>
+      </section>
+
+      <section class="catalog-shell" id="catalog">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Online catalog</p>
+            <h2>Shop by design</h2>
+          </div>
+          <label class="search-box">
+            <span>Search</span>
+            <input id="searchInput" type="search" placeholder="Ring, bangle, silver..." />
+          </label>
+        </div>
+        <div class="product-grid" id="productGrid"></div>
+      </section>
+
+      <section class="admin-panel" id="admin">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Admin access</p>
+            <h2>Rates and product pricing controls</h2>
+          </div>
+          <button class="ghost-button" id="resetData" type="button">Reset demo data</button>
+        </div>
+
+        <div class="admin-grid">
+          <form class="control-panel" id="ratesForm">
+            <h3>Daily metal rates</h3>
+            <label>22K gold rate per gram
+              <input name="gold22" type="number" min="0" step="1" required />
+            </label>
+            <label>18K gold rate per gram
+              <input name="gold18" type="number" min="0" step="1" required />
+            </label>
+            <label>Silver rate per gram
+              <input name="silver" type="number" min="0" step="0.01" required />
+            </label>
+            <button class="primary-button" type="submit">Save daily rates</button>
+          </form>
+
+          <form class="control-panel" id="productForm">
+            <h3 id="productFormTitle">Add new product</h3>
+            <input name="id" type="hidden" />
+            <div class="form-pair">
+              <label>Product name
+                <input name="name" type="text" placeholder="Temple gold ring" required />
+              </label>
+              <label>Category
+                <select name="category" required>
+                  <option>Rings</option>
+                  <option>Necklaces</option>
+                  <option>Earrings</option>
+                  <option>Bangles</option>
+                  <option>Chains</option>
+                  <option>Silver</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-pair">
+              <label>Metal
+                <select name="metal" required>
+                  <option value="gold22">22K Gold</option>
+                  <option value="gold18">18K Gold</option>
+                  <option value="silver">Silver</option>
+                </select>
+              </label>
+              <label>Weight in grams
+                <input name="weight" type="number" min="0.01" step="0.01" required />
+              </label>
+            </div>
+            <div class="form-pair">
+              <label>Labour charge
+                <input name="labour" type="number" min="0" step="1" required />
+              </label>
+              <label>Making percentage
+                <input name="makingPercent" type="number" min="0" step="0.1" required />
+              </label>
+            </div>
+            <div class="form-pair">
+              <label>GST percentage
+                <input name="gstPercent" type="number" min="0" step="0.1" required />
+              </label>
+              <label>Badge
+                <input name="badge" type="text" placeholder="New arrival" />
+              </label>
+            </div>
+            <label>Description
+              <textarea name="description" rows="3" placeholder="Short product description" required></textarea>
+            </label>
+            <div class="button-row">
+              <button class="primary-button" type="submit">Save product</button>
+              <button class="ghost-button" id="cancelEdit" type="button">Cancel edit</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="admin-table-shell">
+          <div class="section-heading compact">
+            <div>
+              <p class="eyebrow">Inventory</p>
+              <h2>50 ready products</h2>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Metal</th>
+                  <th>Weight</th>
+                  <th>Labour</th>
+                  <th>Making %</th>
+                  <th>Live price</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adminRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <aside class="cart-drawer" id="cartDrawer" aria-label="Shopping cart" aria-hidden="true">
+      <div class="cart-header">
+        <div>
+          <p class="eyebrow">Your selection</p>
+          <h2>Cart</h2>
+        </div>
+        <button class="icon-button" id="closeCart" type="button" aria-label="Close cart">x</button>
+      </div>
+      <div class="cart-lines" id="cartLines"></div>
+      <div class="cart-footer">
+        <div class="cart-total">
+          <span>Total</span>
+          <strong id="cartTotal">Rs 0</strong>
+        </div>
+        <button class="primary-button full" type="button">Request order on WhatsApp</button>
+      </div>
+    </aside>
+    <div class="scrim" id="scrim"></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
