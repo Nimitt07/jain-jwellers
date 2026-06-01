@@ -592,10 +592,26 @@ select {
     position: sticky;
     top: 0;
     z-index: 2;
+    padding: 14px 16px;
+  }
+
+  .logo {
+    margin-bottom: 14px;
   }
 
   .nav {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+
+  .nav button {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 42px;
+    padding: 10px 12px;
   }
 
   .grid,
@@ -615,11 +631,112 @@ select {
 }
 
 @media (max-width: 560px) {
+  .main {
+    padding: 16px;
+  }
+
+  .topline {
+    display: grid;
+    align-items: start;
+    margin-bottom: 16px;
+  }
+
+  .topline h1 {
+    font-size: 34px;
+  }
+
+  .toolbar {
+    gap: 8px;
+  }
+
+  .topline .toolbar .button {
+    flex: 1 1 auto;
+    min-height: 40px;
+    padding: 9px 11px;
+    font-size: 13px;
+  }
+
+  .notice {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .panel {
+    margin-top: 14px;
+  }
+
+  .panel-header {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+  }
+
   .grid,
   .form-grid,
   .rate-preview,
   .detail-grid,
   .nav {
     grid-template-columns: 1fr;
+  }
+
+  .form-grid {
+    padding: 14px;
+  }
+
+  .rate-preview {
+    padding: 0 14px 14px;
+  }
+
+  .card {
+    padding: 14px;
+  }
+
+  .card-value {
+    font-size: 23px;
+  }
+
+  .search {
+    max-width: 100%;
+  }
+
+  table {
+    min-width: 760px;
+  }
+
+  th,
+  td {
+    padding: 11px 12px;
+    font-size: 13px;
+  }
+
+  .product-cell {
+    grid-template-columns: 62px minmax(140px, 1fr);
+    gap: 9px;
+  }
+
+  .product-thumb {
+    width: 62px;
+    height: 50px;
+  }
+
+  .cart-drawer,
+  .detail-drawer {
+    width: 100%;
+  }
+
+  .detail-body {
+    padding: 14px;
+  }
+
+  .detail-section {
+    padding: 13px;
+  }
+
+  .product-editor {
+    padding: 14px;
+  }
+
+  .login-card {
+    padding: 22px;
   }
 }
