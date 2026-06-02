@@ -194,6 +194,7 @@ h1 {
   overflow-x: auto;
   overscroll-behavior-inline: contain;
   scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
 
 table {
@@ -661,6 +662,7 @@ select {
     gap: 8px;
     overflow-x: auto;
     padding-bottom: 4px;
+    scroll-snap-type: x proximity;
     scrollbar-width: thin;
   }
 
@@ -669,6 +671,7 @@ select {
     width: auto;
     min-height: 42px;
     padding: 10px 12px;
+    scroll-snap-align: start;
   }
 
   .grid,
@@ -684,6 +687,36 @@ select {
 
   .wide {
     grid-column: span 1;
+  }
+}
+
+@media (min-width: 561px) and (max-width: 1000px) {
+  .main {
+    padding: 22px;
+  }
+
+  .topline {
+    display: grid;
+    align-items: start;
+    margin-bottom: 20px;
+  }
+
+  .topline .toolbar {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 5px;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+  }
+
+  .topline .toolbar .button {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+
+  table {
+    min-width: 980px;
   }
 }
 

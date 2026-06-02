@@ -5,6 +5,7 @@ export const GST_RATE = 0.03;
 export function getRatePerGram(product: Product, rate: GoldRate): number {
   if (product.metal === "silver") return rate.silverRate;
   if (product.purityKt === 24) return rate.rate24k;
+  if (product.purityKt === 20) return rate.rate20k;
   if (product.purityKt === 18) return rate.rate18k;
   return rate.rate22k;
 }

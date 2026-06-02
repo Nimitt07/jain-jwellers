@@ -1,6 +1,6 @@
 export type MetalType = "gold" | "diamond" | "silver" | "platinum" | "gemstone";
 
-export type PurityKt = 18 | 22 | 24 | 925 | 950;
+export type PurityKt = 18 | 20 | 22 | 24 | 925 | 950;
 
 export type ProductCategory =
   | "Gold"
@@ -31,6 +31,7 @@ export type GoldRate = {
   date: string;
   rate22k: number;
   rate24k: number;
+  rate20k: number;
   rate18k: number;
   silverRate: number;
 };

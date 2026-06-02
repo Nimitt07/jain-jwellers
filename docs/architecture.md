@@ -20,6 +20,7 @@ For gold:
 
 - 24K products use `rate24k`
 - 22K products use `rate22k`
+- 20K products use `rate20k`
 - 18K products use `rate18k`
 
 For silver:

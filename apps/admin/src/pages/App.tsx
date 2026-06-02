@@ -100,7 +100,7 @@ export function App() {
   });
   const [active, setActive] = useState<ModuleId>("dashboard");
   const [products, setProducts] = useState<Product[]>(() => readJson("jj-products", seedProducts));
-  const [rate, setRate] = useState<GoldRate>(() => readJson("jj-rate", currentDemoRate));
+  const [rate, setRate] = useState<GoldRate>(() => ({ ...currentDemoRate, ...readJson("jj-rate", currentDemoRate) }));
   const [cart, setCart] = useState<CartLine[]>(() => readJson("jj-cart", []));
   const [orders, setOrders] = useState<Order[]>(() => readJson("jj-orders", defaultOrders));
   const [schemes, setSchemes] = useState<Scheme[]>(() => readJson("jj-schemes", defaultSchemes));
@@ -554,6 +554,7 @@ function Dashboard({
         <div className="form-grid">
           <Metric label="22K Gold" value={`${formatINR(rate.rate22k)} / g`} />
           <Metric label="24K Gold" value={`${formatINR(rate.rate24k)} / g`} />
+          <Metric label="20K Gold" value={`${formatINR(rate.rate20k)} / g`} />
           <Metric label="18K Gold" value={`${formatINR(rate.rate18k)} / g`} />
           <Metric label="Silver" value={`${formatINR(rate.silverRate)} / g`} />
         </div>
@@ -757,9 +758,9 @@ function ProductForm({ onCancel, onSave, product }: { onCancel: () => void; onSa
               {["Necklaces", "Rings", "Earrings", "Bangles", "Pendants", "Chains", "Nose Pins", "Anklets", "Bracelets", "Mangalsutra", "Men's Jewellery", "Kids' Collection"].map((value) => <option key={value}>{value}</option>)}
             </select>
           </label>
-          <label>Purity
+          <label>Quality / Purity
             <select onChange={(event) => setField("purityKt", Number(event.target.value) as Product["purityKt"])} value={draft.purityKt}>
-              {[18, 22, 24, 925, 950].map((value) => <option key={value} value={value}>{value}</option>)}
+              {[18, 20, 22, 24, 925, 950].map((value) => <option key={value} value={value}>{value}</option>)}
             </select>
           </label>
           <label>Gross weight
@@ -1017,6 +1018,9 @@ function Rates({
         </label>
         <label>24K rate
           <input onChange={(event) => setDraft({ ...draft, rate24k: Number(event.target.value) })} type="number" value={draft.rate24k} />
+        </label>
+        <label>20K rate
+          <input onChange={(event) => setDraft({ ...draft, rate20k: Number(event.target.value) })} type="number" value={draft.rate20k} />
         </label>
         <label>18K rate
           <input onChange={(event) => setDraft({ ...draft, rate18k: Number(event.target.value) })} type="number" value={draft.rate18k} />

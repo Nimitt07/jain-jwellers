@@ -78,6 +78,7 @@ CREATE TABLE gold_rates (
   date DATE NOT NULL,
   rate_22k NUMERIC(12, 2) NOT NULL,
   rate_24k NUMERIC(12, 2) NOT NULL,
+  rate_20k NUMERIC(12, 2) NOT NULL,
   rate_18k NUMERIC(12, 2) NOT NULL,
   silver_rate NUMERIC(12, 2) NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

@@ -5,6 +5,7 @@ export const currentDemoRate: GoldRate = {
   date: "2026-05-24",
   rate22k: 9045,
   rate24k: 9867,
+  rate20k: 8223,
   rate18k: 7400,
   silverRate: 108
 };

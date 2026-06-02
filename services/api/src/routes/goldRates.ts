@@ -15,6 +15,7 @@ goldRatesRouter.post("/override", async (request, response) => {
     date: z.string(),
     rate22k: z.number(),
     rate24k: z.number(),
+    rate20k: z.number(),
     rate18k: z.number(),
     silverRate: z.number()
   }).parse(request.body);
