@@ -602,24 +602,67 @@ select {
 
 @media (min-width: 1001px) and (max-width: 1440px) {
   .layout {
-    grid-template-columns: 236px 1fr;
+    grid-template-columns: 210px minmax(0, 1fr);
   }
 
   .sidebar {
-    padding: 20px 16px;
+    padding: 18px 14px;
   }
 
-  .nav button {
-    padding: 11px 12px;
+  .logo {
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  .logo-mark {
+    width: 44px;
+    height: 44px;
+  }
+
+  .logo strong {
     font-size: 14px;
   }
 
+  .logo small {
+    font-size: 10px;
+  }
+
+  .nav button {
+    gap: 8px;
+    padding: 10px;
+    font-size: 13px;
+  }
+
   .main {
-    padding: 26px;
+    padding: 22px;
+  }
+
+  .topline {
+    display: grid;
+    align-items: start;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .topline .toolbar {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 5px;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+  }
+
+  .topline .toolbar .button {
+    flex: 0 0 auto;
+    min-height: 38px;
+    padding: 9px 11px;
+    font-size: 13px;
+    scroll-snap-align: start;
   }
 
   h1 {
-    font-size: 46px;
+    font-size: 40px;
   }
 
   .grid {
@@ -636,7 +679,42 @@ select {
 
   th,
   td {
-    padding: 12px 13px;
+    padding: 11px 12px;
+    font-size: 13px;
+  }
+
+  table {
+    min-width: 1040px;
+  }
+
+  .product-cell {
+    grid-template-columns: 64px minmax(150px, 1fr);
+    gap: 10px;
+  }
+
+  .product-thumb {
+    width: 64px;
+    height: 52px;
+  }
+
+  .small-button {
+    min-height: 32px;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  .panel-header {
+    gap: 12px;
+    padding: 15px;
+  }
+
+  .form-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 15px;
+  }
+
+  .rate-preview {
+    padding: 0 15px 15px;
   }
 }
 
