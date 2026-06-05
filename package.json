@@ -9,6 +9,8 @@
     "packages/*"
   ],
   "scripts": {
+    "build": "npm --workspace services/api run build",
+    "start": "npm --workspace services/api start",
     "dev:mobile": "npm --workspace apps/mobile run start",
     "dev:admin": "npm --workspace apps/admin run dev",
     "dev:api": "npm --workspace services/api run dev",
