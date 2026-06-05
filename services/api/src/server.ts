@@ -5,6 +5,7 @@ import { env } from "./config/env";
 import { catalogueRouter } from "./routes/catalogue";
 import { goldRatesRouter } from "./routes/goldRates";
 import { healthRouter } from "./routes/health";
+import { productsRouter } from "./routes/products";
 
 const app = express();
 
@@ -15,6 +16,12 @@ app.use(express.json({ limit: "2mb" }));
 app.use("/health", healthRouter);
 app.use("/catalogue", catalogueRouter);
 app.use("/gold-rates", goldRatesRouter);
+app.use("/products", productsRouter);
+
+app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
+  console.error(error);
+  response.status(500).json({ error: "Internal server error" });
+});
 
 app.listen(env.PORT, "0.0.0.0", () => {
   console.log(`Jain Jewellers API running on port ${env.PORT}`);

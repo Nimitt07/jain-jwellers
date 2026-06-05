@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import {
   Bell,
   ChartNoAxesCombined,
@@ -47,6 +47,7 @@ type GenericModule = "dashboard" | "schemes" | "showrooms" | "notifications" | "
 
 const ADMIN_MOBILE = "9876543210";
 const ADMIN_PASSWORD = "admin@123";
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "https://jain-jewellers.onrender.com").replace(/\/$/, "");
 type Role = "admin" | "viewer";
 
 const productTemplate: Product = {
@@ -116,6 +117,32 @@ export function App() {
   const [cartOpen, setCartOpen] = useState(false);
   const isAdmin = role === "admin";
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadProducts() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/products`);
+        if (!response.ok) throw new Error(`Products API returned ${response.status}`);
+        const data = await response.json() as { products: Product[] };
+        if (!cancelled && Array.isArray(data.products)) {
+          setProducts(data.products);
+          localStorage.setItem("jj-products", JSON.stringify(data.products));
+          setNotice("Products loaded from shared database.");
+        }
+      } catch {
+        if (!cancelled) {
+          setNotice("Using cached products. Backend may be waking up.");
+        }
+      }
+    }
+
+    void loadProducts();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const totals = useMemo(() => {
     const inventoryValue = products.reduce(
       (sum, product) => sum + calculateProductPrice(product, rate).total * product.stockQty,
@@ -138,8 +165,10 @@ export function App() {
 
   function persistProducts(next: Product[]) {
     if (!isAdmin) return;
+    const previous = products;
     setProducts(next);
     localStorage.setItem("jj-products", JSON.stringify(next));
+    void syncProductsToApi(previous, next, setNotice);
   }
 
   function persistRate(next: GoldRate) {
@@ -1298,6 +1327,32 @@ function getGenericColumns(module: GenericModule): Array<{ key: string; label: s
 
 function genericTitle(module: GenericModule) {
   return modules.find((item) => item.id === module)?.label || module;
+}
+
+async function syncProductsToApi(previous: Product[], next: Product[], setNotice: (notice: string) => void) {
+  try {
+    const nextIds = new Set(next.map((product) => product.id));
+    const removedProducts = previous.filter((product) => !nextIds.has(product.id));
+
+    await Promise.all([
+      ...next.map((product) => fetch(`${API_BASE_URL}/products/${encodeURIComponent(product.id)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(product)
+      }).then((response) => {
+        if (!response.ok) throw new Error(`Save failed for ${product.id}`);
+      })),
+      ...removedProducts.map((product) => fetch(`${API_BASE_URL}/products/${encodeURIComponent(product.id)}`, {
+        method: "DELETE"
+      }).then((response) => {
+        if (!response.ok && response.status !== 404) throw new Error(`Delete failed for ${product.id}`);
+      }))
+    ]);
+
+    setNotice("Products saved to shared database.");
+  } catch {
+    setNotice("Product changed locally, but database sync failed. Check Render API and redeploy if needed.");
+  }
 }
 
 function getProductImage(product: Product) {
