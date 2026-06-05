@@ -4,6 +4,7 @@ import helmet from "helmet";
 import { env } from "./config/env";
 import { catalogueRouter } from "./routes/catalogue";
 import { goldRatesRouter } from "./routes/goldRates";
+import { adminDataRouter } from "./routes/adminData";
 import { healthRouter } from "./routes/health";
 import { productsRouter } from "./routes/products";
 
@@ -16,6 +17,7 @@ app.use(express.json({ limit: "15mb" }));
 app.use("/health", healthRouter);
 app.use("/catalogue", catalogueRouter);
 app.use("/gold-rates", goldRatesRouter);
+app.use("/admin-data", adminDataRouter);
 app.use("/products", productsRouter);
 
 app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {

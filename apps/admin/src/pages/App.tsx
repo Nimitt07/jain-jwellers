@@ -120,28 +120,54 @@ export function App() {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadProducts() {
+    async function loadSharedData() {
       try {
-        const response = await fetch(`${API_BASE_URL}/products`);
-        if (!response.ok) throw new Error(`Products API returned ${response.status}`);
-        const data = await response.json() as { products: Product[] };
-        if (!cancelled && Array.isArray(data.products)) {
-          setProducts(data.products);
-          localStorage.setItem("jj-products", JSON.stringify(data.products));
-          setNotice("Products loaded from shared database.");
+        const [productsResponse, rateResponse, ordersData, analyticsData, schemesData, showroomsData, notificationsData, usersData] = await Promise.all([
+          fetch(`${API_BASE_URL}/products`),
+          fetch(`${API_BASE_URL}/gold-rates/current?city=${encodeURIComponent(rate.city)}`),
+          fetchAdminData("orders"),
+          fetchAdminData("dashboard"),
+          fetchAdminData("schemes"),
+          fetchAdminData("showrooms"),
+          fetchAdminData("notifications"),
+          fetchAdminData("users")
+        ]);
+
+        if (!productsResponse.ok) throw new Error(`Products API returned ${productsResponse.status}`);
+        if (!rateResponse.ok) throw new Error(`Rates API returned ${rateResponse.status}`);
+
+        const productsData = await productsResponse.json() as { products: Product[] };
+        const rateData = await rateResponse.json() as { rate: GoldRate };
+
+        if (!cancelled) {
+          if (Array.isArray(productsData.products)) {
+            setProducts(productsData.products);
+            localStorage.setItem("jj-products", JSON.stringify(productsData.products));
+          }
+          if (rateData.rate) {
+            setRate(rateData.rate);
+            localStorage.setItem("jj-rate", JSON.stringify(rateData.rate));
+          }
+          applySharedItems("jj-orders", ordersData, setOrders);
+          applySharedItems("jj-analytics", analyticsData, setAnalytics);
+          applySharedItems("jj-schemes", schemesData, setSchemes);
+          applySharedItems("jj-showrooms", showroomsData, setShowrooms);
+          applySharedItems("jj-notifications", notificationsData, setNotifications);
+          applySharedItems("jj-users", usersData, setUsers);
+          setNotice("Shared admin data loaded from database.");
         }
       } catch {
         if (!cancelled) {
-          setNotice("Using cached products. Backend may be waking up.");
+          setNotice("Using cached admin data. Backend may be waking up.");
         }
       }
     }
 
-    void loadProducts();
+    void loadSharedData();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [rate.city]);
 
   const totals = useMemo(() => {
     const inventoryValue = products.reduce(
@@ -175,6 +201,7 @@ export function App() {
     if (!isAdmin) return;
     setRate(next);
     localStorage.setItem("jj-rate", JSON.stringify(next));
+    void syncRateToApi(next, setNotice);
   }
 
   function persistCart(next: CartLine[]) {
@@ -186,6 +213,7 @@ export function App() {
     if (!isAdmin) return;
     setOrders(next);
     localStorage.setItem("jj-orders", JSON.stringify(next));
+    void syncAdminData("orders", next, setNotice);
   }
 
   function persistGeneric(module: GenericModule, items: GenericItem[]) {
@@ -210,6 +238,7 @@ export function App() {
       setUsers(items as UserRecord[]);
       localStorage.setItem("jj-users", JSON.stringify(items));
     }
+    void syncAdminData(module, items, setNotice);
   }
 
   function addToCart(productId: string) {
@@ -1329,6 +1358,20 @@ function genericTitle(module: GenericModule) {
   return modules.find((item) => item.id === module)?.label || module;
 }
 
+async function fetchAdminData(module: GenericModule | "orders") {
+  const response = await fetch(`${API_BASE_URL}/admin-data/${module}`);
+  if (!response.ok) throw new Error(`${module} API returned ${response.status}`);
+  const data = await response.json() as { items: unknown[] | null };
+  return data.items;
+}
+
+function applySharedItems<T>(storageKey: string, items: unknown[] | null, setItems: (items: T[]) => void) {
+  if (!Array.isArray(items)) return;
+  const typedItems = items as T[];
+  setItems(typedItems);
+  localStorage.setItem(storageKey, JSON.stringify(typedItems));
+}
+
 async function syncProductsToApi(previous: Product[], next: Product[], setNotice: (notice: string) => void) {
   try {
     const nextIds = new Set(next.map((product) => product.id));
@@ -1354,6 +1397,34 @@ async function syncProductsToApi(previous: Product[], next: Product[], setNotice
     setNotice("Products saved to shared database.");
   } catch {
     setNotice("Product changed locally, but database sync failed. Check Render API and redeploy if needed.");
+  }
+}
+
+async function syncRateToApi(rate: GoldRate, setNotice: (notice: string) => void) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/gold-rates/override`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(rate)
+    });
+    if (!response.ok) throw new Error(`Rates API returned ${response.status}`);
+    setNotice("Daily gold and silver rates saved to shared database.");
+  } catch {
+    setNotice("Rates changed locally, but database sync failed. Check Vercel API URL and Render.");
+  }
+}
+
+async function syncAdminData(module: GenericModule | "orders", items: GenericItem[] | Order[], setNotice: (notice: string) => void) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin-data/${module}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items })
+    });
+    if (!response.ok) throw new Error(`${module} API returned ${response.status}`);
+    setNotice(`${module === "orders" ? "Orders" : genericTitle(module)} data saved to shared database.`);
+  } catch {
+    setNotice("Record changed locally, but database sync failed. Check Vercel API URL and Render.");
   }
 }
 
