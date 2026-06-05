@@ -47,7 +47,7 @@ type GenericModule = "dashboard" | "schemes" | "showrooms" | "notifications" | "
 
 const ADMIN_MOBILE = "9876543210";
 const ADMIN_PASSWORD = "admin@123";
-const API_BASE_URL = (import.meta.env.VITE_API_URL || "https://jain-jewellers.onrender.com").replace(/\/$/, "");
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "https://jain-jwellers.onrender.com").replace(/\/$/, "");
 type Role = "admin" | "viewer";
 
 const productTemplate: Product = {
