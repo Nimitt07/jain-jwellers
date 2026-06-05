@@ -1332,10 +1332,12 @@ function genericTitle(module: GenericModule) {
 async function syncProductsToApi(previous: Product[], next: Product[], setNotice: (notice: string) => void) {
   try {
     const nextIds = new Set(next.map((product) => product.id));
+    const previousById = new Map(previous.map((product) => [product.id, JSON.stringify(product)]));
+    const changedProducts = next.filter((product) => previousById.get(product.id) !== JSON.stringify(product));
     const removedProducts = previous.filter((product) => !nextIds.has(product.id));
 
     await Promise.all([
-      ...next.map((product) => fetch(`${API_BASE_URL}/products/${encodeURIComponent(product.id)}`, {
+      ...changedProducts.map((product) => fetch(`${API_BASE_URL}/products/${encodeURIComponent(product.id)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(product)
