@@ -103,7 +103,9 @@ export function App() {
   const [products, setProducts] = useState<Product[]>(() => readJson("jj-products", seedProducts));
   const [rate, setRate] = useState<GoldRate>(() => ({ ...currentDemoRate, ...readJson("jj-rate", currentDemoRate) }));
   const [cart, setCart] = useState<CartLine[]>(() => readJson("jj-cart", []));
-  const [orders, setOrders] = useState<Order[]>(() => readJson("jj-orders", defaultOrders));
+  const [orders, setOrders] = useState<Order[]>(() => (
+    role === "admin" ? readJson("jj-orders", defaultOrders) : readJson("jj-local-orders", [])
+  ));
   const [schemes, setSchemes] = useState<Scheme[]>(() => readJson("jj-schemes", defaultSchemes));
   const [showrooms, setShowrooms] = useState<Showroom[]>(() => readJson("jj-showrooms", defaultShowrooms));
   const [notifications, setNotifications] = useState<NotificationItem[]>(() => readJson("jj-notifications", defaultNotifications));
@@ -125,7 +127,7 @@ export function App() {
         const [productsResponse, rateResponse, ordersData, analyticsData, schemesData, showroomsData, notificationsData, usersData] = await Promise.all([
           fetch(`${API_BASE_URL}/products`),
           fetch(`${API_BASE_URL}/gold-rates/current?city=${encodeURIComponent(rate.city)}`),
-          fetchAdminData("orders"),
+          isAdmin ? fetchAdminData("orders") : Promise.resolve(null),
           fetchAdminData("dashboard"),
           fetchAdminData("schemes"),
           fetchAdminData("showrooms"),
@@ -148,7 +150,11 @@ export function App() {
             setRate(rateData.rate);
             localStorage.setItem("jj-rate", JSON.stringify(rateData.rate));
           }
-          applySharedItems("jj-orders", ordersData, setOrders);
+          if (isAdmin) {
+            applySharedItems("jj-orders", ordersData, setOrders);
+          } else {
+            setOrders(readJson("jj-local-orders", []));
+          }
           applySharedItems("jj-analytics", analyticsData, setAnalytics);
           applySharedItems("jj-schemes", schemesData, setSchemes);
           applySharedItems("jj-showrooms", showroomsData, setShowrooms);
@@ -167,7 +173,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [rate.city]);
+  }, [isAdmin, rate.city]);
 
   const totals = useMemo(() => {
     const inventoryValue = products.reduce(
@@ -210,10 +216,13 @@ export function App() {
   }
 
   function persistOrders(next: Order[]) {
-    if (!isAdmin) return;
     setOrders(next);
-    localStorage.setItem("jj-orders", JSON.stringify(next));
-    void syncAdminData("orders", next, setNotice);
+    if (isAdmin) {
+      localStorage.setItem("jj-orders", JSON.stringify(next));
+      void syncAdminData("orders", next, setNotice);
+    } else {
+      localStorage.setItem("jj-local-orders", JSON.stringify(next));
+    }
   }
 
   function persistGeneric(module: GenericModule, items: GenericItem[]) {
@@ -322,10 +331,6 @@ export function App() {
   }
 
   function placeCartOrder(customer = "Walk-in Customer", phone = "9999999999") {
-    if (!isAdmin) {
-      setNotice("Only admin can place orders.");
-      return;
-    }
     if (!cart.length) {
       setNotice("Cart is empty.");
       return;
@@ -336,11 +341,11 @@ export function App() {
       if (!product) return [];
       return [{
         id: `ORD-${Date.now().toString().slice(-6)}-${index + 1}`,
-        customer,
-        phone,
+        customer: isAdmin ? customer : "My order",
+        phone: isAdmin ? phone : "Local customer",
         productId: product.id,
         qty: line.qty,
-        payment: "UPI",
+        payment: isAdmin ? "UPI" : "Pending",
         status: "Placed",
         total: calculateProductPrice(product, rate).total * line.qty,
         date: today
@@ -351,16 +356,21 @@ export function App() {
       return;
     }
     persistOrders([...newOrders, ...orders]);
-    persistProducts(products.map((product) => {
-      const orderedQty = cart
-        .filter((line) => line.productId === product.id)
-        .reduce((sum, line) => sum + line.qty, 0);
-      return orderedQty ? { ...product, stockQty: Math.max(0, product.stockQty - orderedQty) } : product;
-    }));
+    if (isAdmin) {
+      persistProducts(products.map((product) => {
+        const orderedQty = cart
+          .filter((line) => line.productId === product.id)
+          .reduce((sum, line) => sum + line.qty, 0);
+        return orderedQty ? { ...product, stockQty: Math.max(0, product.stockQty - orderedQty) } : product;
+      }));
+    }
     persistCart([]);
     setCartOpen(false);
     setActive("orders");
-    setNotice(`${newOrders.length} order record${newOrders.length > 1 ? "s" : ""} saved to order database.`);
+    setNotice(isAdmin
+      ? `${newOrders.length} order record${newOrders.length > 1 ? "s" : ""} saved to order database.`
+      : `${newOrders.length} local order${newOrders.length > 1 ? "s" : ""} saved on this device.`
+    );
   }
 
   function downloadCsv() {
@@ -410,6 +420,7 @@ export function App() {
   if (!role) {
     return <LoginScreen onLogin={(nextRole) => {
       localStorage.setItem("jj-admin-role", nextRole);
+      setOrders(nextRole === "admin" ? readJson("jj-orders", defaultOrders) : readJson("jj-local-orders", []));
       setRole(nextRole);
     }} />;
   }
@@ -463,6 +474,7 @@ export function App() {
             </button>
             <button className="button ghost" onClick={() => {
               localStorage.removeItem("jj-admin-role");
+              setOrders([]);
               setRole(null);
             }} type="button">
               <LogOut size={16} /> Logout
