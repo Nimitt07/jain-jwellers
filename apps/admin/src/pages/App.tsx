@@ -1397,7 +1397,7 @@ function applyOrPublishSharedItems<T extends GenericItem | Order>(
   setNotice: (notice: string) => void,
   shouldPublish: boolean
 ) {
-  if (Array.isArray(cloudItems)) {
+  if (Array.isArray(cloudItems) && cloudItems.length > 0) {
     applySharedItems(storageKey, cloudItems, setItems);
     return;
   }
