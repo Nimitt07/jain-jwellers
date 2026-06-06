@@ -151,15 +151,15 @@ export function App() {
             localStorage.setItem("jj-rate", JSON.stringify(rateData.rate));
           }
           if (isAdmin) {
-            applySharedItems("jj-orders", ordersData, setOrders);
+            applyOrPublishSharedItems("orders", "jj-orders", defaultOrders, ordersData, setOrders, setNotice, true);
           } else {
             setOrders(readJson("jj-local-orders", []));
           }
-          applySharedItems("jj-analytics", analyticsData, setAnalytics);
-          applySharedItems("jj-schemes", schemesData, setSchemes);
-          applySharedItems("jj-showrooms", showroomsData, setShowrooms);
-          applySharedItems("jj-notifications", notificationsData, setNotifications);
-          applySharedItems("jj-users", usersData, setUsers);
+          applyOrPublishSharedItems("dashboard", "jj-analytics", defaultAnalytics, analyticsData, setAnalytics, setNotice, isAdmin);
+          applyOrPublishSharedItems("schemes", "jj-schemes", defaultSchemes, schemesData, setSchemes, setNotice, isAdmin);
+          applyOrPublishSharedItems("showrooms", "jj-showrooms", defaultShowrooms, showroomsData, setShowrooms, setNotice, isAdmin);
+          applyOrPublishSharedItems("notifications", "jj-notifications", defaultNotifications, notificationsData, setNotifications, setNotice, isAdmin);
+          applyOrPublishSharedItems("users", "jj-users", defaultUsers, usersData, setUsers, setNotice, isAdmin);
           setNotice("Shared admin data loaded from database.");
         }
       } catch {
@@ -1057,6 +1057,10 @@ function Rates({
   const [draft, setDraft] = useState(rate);
   const silverProducts = products.filter((product) => product.metal === "silver" || product.category === "Silver");
 
+  useEffect(() => {
+    setDraft(rate);
+  }, [rate]);
+
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!isAdmin) {
@@ -1382,6 +1386,29 @@ function applySharedItems<T>(storageKey: string, items: unknown[] | null, setIte
   const typedItems = items as T[];
   setItems(typedItems);
   localStorage.setItem(storageKey, JSON.stringify(typedItems));
+}
+
+function applyOrPublishSharedItems<T extends GenericItem | Order>(
+  module: GenericModule | "orders",
+  storageKey: string,
+  fallback: T[],
+  cloudItems: unknown[] | null,
+  setItems: (items: T[]) => void,
+  setNotice: (notice: string) => void,
+  shouldPublish: boolean
+) {
+  if (Array.isArray(cloudItems)) {
+    applySharedItems(storageKey, cloudItems, setItems);
+    return;
+  }
+
+  const localItems = readJson<T[]>(storageKey, fallback);
+  setItems(localItems);
+  localStorage.setItem(storageKey, JSON.stringify(localItems));
+
+  if (shouldPublish && localItems.length) {
+    void syncAdminData(module, localItems as GenericItem[] | Order[], setNotice);
+  }
 }
 
 async function syncProductsToApi(previous: Product[], next: Product[], setNotice: (notice: string) => void) {
