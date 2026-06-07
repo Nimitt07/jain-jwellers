@@ -463,7 +463,7 @@ export function App() {
           <div>
             <p className="eyebrow">Admin panel</p>
             <h1>{modules.find((module) => module.id === active)?.label}</h1>
-            <p className="subtext">{isAdmin ? "Admin access: create, edit and delete enabled." : "Viewer access: read-only mode."}</p>
+            <p className="subtext">{isAdmin ? "Admin access: create, edit and delete enabled." : "Customer access: browse, add to cart and view your own orders."}</p>
           </div>
           <div className="toolbar">
             <button className="button ghost" onClick={downloadCsv} type="button"><Download size={16} /> CSV</button>
@@ -577,15 +577,14 @@ function LoginScreen({ onLogin }: { onLogin: (role: Role) => void }) {
       <form className="login-card" onSubmit={submit}>
         <div className="login-mark">JJ</div>
         <p className="eyebrow">Pure. Trusted. Timeless.</p>
-        <h1>Jain Jewellers Admin Login</h1>
-        <p className="login-copy">Admin can manage records. Any other account can log in as read-only viewer.</p>
+        <h1>Jain Jewellers Login</h1>
+        <p className="login-copy">Sign in to browse products, place orders, and view your order history.</p>
         <label>Mobile number
-          <input inputMode="tel" onChange={(event) => setPhone(event.target.value)} placeholder={ADMIN_MOBILE} value={phone} />
+          <input inputMode="tel" onChange={(event) => setPhone(event.target.value)} placeholder="Enter mobile number" value={phone} />
         </label>
         <label>Password
           <input onChange={(event) => setPassword(event.target.value)} placeholder="Enter password" type="password" value={password} />
         </label>
-        <p className="subtext">Admin: {ADMIN_MOBILE} / {ADMIN_PASSWORD}. Any other valid mobile/password opens read-only mode.</p>
         {error ? <div className="error">{error}</div> : null}
         <button className="button" type="submit">Login</button>
       </form>
@@ -1255,8 +1254,8 @@ function CartDrawer({
         <div className="cart-footer">
           <span>Total</span>
           <strong>{formatINR(totals.cartTotal)}</strong>
-          <button className="button" disabled={cart.length === 0 || !isAdmin} onClick={placeCartOrder} type="button">
-            {isAdmin ? "Place order" : "Admin only"}
+          <button className="button" disabled={cart.length === 0} onClick={placeCartOrder} type="button">
+            Place order
           </button>
         </div>
       </aside>
