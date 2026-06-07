@@ -35,7 +35,7 @@ const modules = [
 
 type ModuleId = (typeof modules)[number]["id"];
 type CartLine = { productId: string; qty: number };
-type Order = { id: string; customer: string; phone: string; productId: string; qty: number; payment: string; status: string; total: number; date: string; paymentRef?: string };
+type Order = { id: string; customer: string; phone: string; productId: string; qty: number; payment: string; status: string; total: number; date: string; paymentRef?: string; userId?: string; userEmail?: string };
 type Scheme = { id: string; customer: string; plan: string; monthlyAmount: number; paid: number; maturityDate: string; status: string };
 type Showroom = { id: string; name: string; city: string; address: string; phone: string; hours: string; services: string };
 type NotificationItem = { id: string; title: string; audience: string; channel: string; schedule: string; status: string };
@@ -107,7 +107,7 @@ export function App() {
   const [rate, setRate] = useState<GoldRate>(() => ({ ...currentDemoRate, ...readJson("jj-rate", currentDemoRate) }));
   const [cart, setCart] = useState<CartLine[]>(() => readJson("jj-cart", []));
   const [orders, setOrders] = useState<Order[]>(() => (
-    role === "admin" ? readJson("jj-orders", defaultOrders) : readJson("jj-local-orders", [])
+    role === "admin" ? readJson("jj-orders", defaultOrders) : readJson(getUserOrdersKey(sessionUser), [])
   ));
   const [schemes, setSchemes] = useState<Scheme[]>(() => readJson("jj-schemes", defaultSchemes));
   const [showrooms, setShowrooms] = useState<Showroom[]>(() => readJson("jj-showrooms", defaultShowrooms));
@@ -130,7 +130,7 @@ export function App() {
         const [productsResponse, rateResponse, ordersData, analyticsData, schemesData, showroomsData, notificationsData, usersData] = await Promise.all([
           fetch(`${API_BASE_URL}/products`),
           fetch(`${API_BASE_URL}/gold-rates/current?city=${encodeURIComponent(rate.city)}`),
-          isAdmin ? fetchAdminData("orders") : Promise.resolve(null),
+          fetchAdminData("orders"),
           fetchAdminData("dashboard"),
           fetchAdminData("schemes"),
           fetchAdminData("showrooms"),
@@ -156,7 +156,7 @@ export function App() {
           if (isAdmin) {
             applyOrPublishSharedItems("orders", "jj-orders", defaultOrders, ordersData, setOrders, setNotice, true);
           } else {
-            setOrders(readJson("jj-local-orders", []));
+            applyUserOrders(ordersData, sessionUser, setOrders);
           }
           applyOrPublishSharedItems("dashboard", "jj-analytics", defaultAnalytics, analyticsData, setAnalytics, setNotice, isAdmin);
           applyOrPublishSharedItems("schemes", "jj-schemes", defaultSchemes, schemesData, setSchemes, setNotice, isAdmin);
@@ -176,7 +176,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, rate.city]);
+  }, [isAdmin, rate.city, sessionUser]);
 
   const totals = useMemo(() => {
     const inventoryValue = products.reduce(
@@ -224,7 +224,8 @@ export function App() {
       localStorage.setItem("jj-orders", JSON.stringify(next));
       void syncAdminData("orders", next, setNotice);
     } else {
-      localStorage.setItem("jj-local-orders", JSON.stringify(next));
+      localStorage.setItem(getUserOrdersKey(sessionUser), JSON.stringify(next));
+      void syncCustomerOrdersToApi(next, sessionUser, setNotice);
     }
   }
 
@@ -317,18 +318,19 @@ export function App() {
   }
 
   function placeOrder(order: Order) {
-    const existingOrder = orders.some((item) => item.id === order.id);
-    persistOrders(existingOrder ? orders.map((item) => item.id === order.id ? order : item) : [order, ...orders]);
+    const orderToSave = isAdmin ? order : { ...order, userId: sessionUser?.id, userEmail: sessionUser?.email };
+    const existingOrder = orders.some((item) => item.id === orderToSave.id);
+    persistOrders(existingOrder ? orders.map((item) => item.id === orderToSave.id ? orderToSave : item) : [orderToSave, ...orders]);
     if (isAdmin) {
       persistProducts(products.map((product) => (
-        product.id === order.productId && !existingOrder
-          ? { ...product, stockQty: Math.max(0, product.stockQty - order.qty) }
+        product.id === orderToSave.productId && !existingOrder
+          ? { ...product, stockQty: Math.max(0, product.stockQty - orderToSave.qty) }
           : product
       )));
     }
     setPlacingOrder(null);
     setActive("orders");
-    setNotice(isAdmin ? `Order ${order.id} saved to order database.` : `Order ${order.id} saved on this device.`);
+    setNotice(isAdmin ? `Order ${orderToSave.id} saved to order database.` : `Order ${orderToSave.id} saved to your account.`);
   }
 
   function placeCartOrder(customer = "Walk-in Customer", phone = "9999999999") {
@@ -435,7 +437,7 @@ export function App() {
     localStorage.setItem("jj-admin-role", nextRole);
     localStorage.setItem("jj-session-user", JSON.stringify(user));
     setSessionUser(user);
-    setOrders(nextRole === "admin" ? readJson("jj-orders", defaultOrders) : readJson("jj-local-orders", []));
+    setOrders(nextRole === "admin" ? readJson("jj-orders", defaultOrders) : readJson(getUserOrdersKey(user), []));
     setRole(nextRole);
   }
 
@@ -1049,7 +1051,7 @@ function Orders({
             const product = products.find((item) => item.id === order.productId);
             return [
               order.id,
-              `${order.customer} (${order.phone})`,
+              `${order.customer} (${order.phone})${isAdmin && order.userEmail ? ` - ${order.userEmail}` : ""}`,
               product?.name || order.productId,
               String(order.qty),
               order.payment,
@@ -1408,7 +1410,9 @@ function createOrderDraft(product: Product | undefined, rate: GoldRate, isAdmin:
     payment: isAdmin ? "UPI" : "PhonePe / UPI",
     status: isAdmin ? "Placed" : "Payment pending",
     total: product ? calculateProductPrice(product, rate).total : 0,
-    date: new Date().toISOString().slice(0, 10)
+    date: new Date().toISOString().slice(0, 10),
+    userId: isAdmin ? undefined : sessionUser?.id,
+    userEmail: isAdmin ? undefined : sessionUser?.email
   };
 }
 
@@ -1494,6 +1498,27 @@ function applySharedItems<T>(storageKey: string, items: unknown[] | null, setIte
   localStorage.setItem(storageKey, JSON.stringify(typedItems));
 }
 
+function getUserOrdersKey(user: SessionUser | null) {
+  return user?.id ? `jj-orders-${user.id}` : "jj-orders-guest";
+}
+
+function isOrderForUser(order: Order, user: SessionUser | null) {
+  if (!user) return false;
+  return order.userId === user.id || (!!order.userEmail && order.userEmail === user.email);
+}
+
+function applyUserOrders(cloudItems: unknown[] | null, user: SessionUser | null, setItems: (items: Order[]) => void) {
+  const storageKey = getUserOrdersKey(user);
+  if (Array.isArray(cloudItems)) {
+    const userOrders = (cloudItems as Order[]).filter((order) => isOrderForUser(order, user));
+    setItems(userOrders);
+    localStorage.setItem(storageKey, JSON.stringify(userOrders));
+    return;
+  }
+
+  setItems(readJson(storageKey, []));
+}
+
 function applyOrPublishSharedItems<T extends GenericItem | Order>(
   module: GenericModule | "orders",
   storageKey: string,
@@ -1570,6 +1595,24 @@ async function syncAdminData(module: GenericModule | "orders", items: GenericIte
     setNotice(`${module === "orders" ? "Orders" : genericTitle(module)} data saved to shared database.`);
   } catch {
     setNotice("Record changed locally, but database sync failed. Check Vercel API URL and Render.");
+  }
+}
+
+async function syncCustomerOrdersToApi(userOrders: Order[], user: SessionUser | null, setNotice: (notice: string) => void) {
+  if (!user) {
+    setNotice("Order saved locally. Sign in again to sync it to your account.");
+    return;
+  }
+
+  try {
+    const cloudOrders = await fetchAdminData("orders");
+    const allOrders = Array.isArray(cloudOrders) ? cloudOrders as Order[] : [];
+    const otherOrders = allOrders.filter((order) => !isOrderForUser(order, user));
+    const taggedOrders = userOrders.map((order) => ({ ...order, userId: user.id, userEmail: user.email }));
+    await syncAdminData("orders", [...taggedOrders, ...otherOrders], setNotice);
+    setNotice("Order saved to your account. Admin can see it in all orders.");
+  } catch {
+    setNotice("Order saved locally, but cloud order sync failed. Check Render/Vercel.");
   }
 }
 
