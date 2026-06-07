@@ -267,18 +267,18 @@ export function App() {
   }
 
   function handleCreateNew() {
+    if (active === "orders") {
+      setPlacingOrder(createOrderDraft(products[0], rate, isAdmin));
+      setNotice("Fill order details and place the order.");
+      return;
+    }
     if (!isAdmin) {
-      setNotice("Only admin can create records.");
+      setNotice("Only admin can create records in this section.");
       return;
     }
     if (active === "products") {
       setEditingProduct({ ...productTemplate, id: createProductId(products), hallmarkId: `HUID-JJ${Date.now().toString().slice(-6)}` });
       setNotice("Fill product details, including image, and save.");
-      return;
-    }
-    if (active === "orders") {
-      setPlacingOrder(createOrderDraft(products[0], rate));
-      setNotice("Fill order details and place the order.");
       return;
     }
     if (active === "rates") {
@@ -314,20 +314,18 @@ export function App() {
   }
 
   function placeOrder(order: Order) {
-    if (!isAdmin) {
-      setNotice("Only admin can place orders.");
-      return;
-    }
     const existingOrder = orders.some((item) => item.id === order.id);
     persistOrders(existingOrder ? orders.map((item) => item.id === order.id ? order : item) : [order, ...orders]);
-    persistProducts(products.map((product) => (
-      product.id === order.productId && !existingOrder
-        ? { ...product, stockQty: Math.max(0, product.stockQty - order.qty) }
-        : product
-    )));
+    if (isAdmin) {
+      persistProducts(products.map((product) => (
+        product.id === order.productId && !existingOrder
+          ? { ...product, stockQty: Math.max(0, product.stockQty - order.qty) }
+          : product
+      )));
+    }
     setPlacingOrder(null);
     setActive("orders");
-    setNotice(`Order ${order.id} saved to order database.`);
+    setNotice(isAdmin ? `Order ${order.id} saved to order database.` : `Order ${order.id} saved on this device.`);
   }
 
   function placeCartOrder(customer = "Walk-in Customer", phone = "9999999999") {
@@ -467,7 +465,7 @@ export function App() {
           </div>
           <div className="toolbar">
             <button className="button ghost" onClick={downloadCsv} type="button"><Download size={16} /> CSV</button>
-            <button className="button" disabled={!isAdmin} onClick={handleCreateNew} type="button">Create new</button>
+            <button className="button" disabled={!isAdmin && active !== "orders"} onClick={handleCreateNew} type="button">Create new</button>
             <button className="button ghost" disabled={!isAdmin} onClick={resetDemoData} type="button">Reset data</button>
             <button className="button ghost" onClick={() => setCartOpen(true)} type="button">
               <ShoppingBag size={16} /> Cart {totals.cartCount}
@@ -740,7 +738,7 @@ function Products({
                       <div className="row-actions">
                         <button className="small-button" onClick={() => addToCart(product.id)} type="button">Cart</button>
                         <button className="small-button" onClick={() => {
-                          setPlacingOrder(createOrderDraft(product, rate));
+                          setPlacingOrder(createOrderDraft(product, rate, isAdmin));
                           setActive("orders");
                         }} type="button">Order</button>
                         <button className="small-button" disabled={!isAdmin} onClick={() => setEditingProduct(product)} type="button">Edit</button>
@@ -940,20 +938,16 @@ function Orders({
   setPlacingOrder: (order: Order | null) => void;
 }) {
   function saveOrder(order: Order) {
-    if (!isAdmin) {
-      setNotice("Only admin can create or edit orders.");
-      return;
-    }
     onSaveOrder(order);
   }
 
   return (
     <>
-      {placingOrder ? <OrderForm order={placingOrder} products={products} rate={rate} onCancel={() => setPlacingOrder(null)} onSave={saveOrder} /> : null}
+      {placingOrder ? <OrderForm isAdmin={isAdmin} order={placingOrder} products={products} rate={rate} onCancel={() => setPlacingOrder(null)} onSave={saveOrder} /> : null}
       <section className="panel">
         <div className="panel-header">
           <h2>Order management</h2>
-          <p className="subtext">Place, edit and update order status.</p>
+          <p className="subtext">{isAdmin ? "Place, edit and update all store orders." : "Place orders and view your local order history."}</p>
         </div>
         <SimpleTable
           columns={["Order", "Customer", "Product", "Qty", "Payment", "Status", "Total", "Actions"]}
@@ -968,7 +962,7 @@ function Orders({
               order.status,
               formatINR(order.total),
               <div className="row-actions" key={order.id}>
-                <button className="small-button" disabled={!isAdmin} onClick={() => setPlacingOrder(order)} type="button">Edit</button>
+                <button className="small-button" onClick={() => setPlacingOrder(order)} type="button">Edit</button>
                 {isAdmin ? (
                   <button className="small-button danger" onClick={() => setOrders(orders.filter((item) => item.id !== order.id))} type="button">Delete</button>
                 ) : null}
@@ -981,7 +975,7 @@ function Orders({
   );
 }
 
-function OrderForm({ onCancel, onSave, order, products, rate }: { onCancel: () => void; onSave: (order: Order) => void; order: Order; products: Product[]; rate: GoldRate }) {
+function OrderForm({ isAdmin, onCancel, onSave, order, products, rate }: { isAdmin: boolean; onCancel: () => void; onSave: (order: Order) => void; order: Order; products: Product[]; rate: GoldRate }) {
   const [draft, setDraft] = useState(order);
 
   function updateProduct(productId: string) {
@@ -997,7 +991,7 @@ function OrderForm({ onCancel, onSave, order, products, rate }: { onCancel: () =
   return (
     <form className="panel" onSubmit={(event) => {
       event.preventDefault();
-      onSave(draft);
+      onSave(isAdmin ? draft : { ...draft, status: "Placed", date: new Date().toISOString().slice(0, 10) });
     }}>
       <div className="panel-header">
         <h2>Place order</h2>
@@ -1026,14 +1020,18 @@ function OrderForm({ onCancel, onSave, order, products, rate }: { onCancel: () =
             {["UPI", "Card", "Net Banking", "Cash", "COD"].map((value) => <option key={value}>{value}</option>)}
           </select>
         </label>
-        <label>Status
-          <select onChange={(event) => setDraft({ ...draft, status: event.target.value })} value={draft.status}>
-            {["Placed", "Confirmed", "Packed", "Shipped", "Delivered", "Cancelled"].map((value) => <option key={value}>{value}</option>)}
-          </select>
-        </label>
-        <label>Date
-          <input onChange={(event) => setDraft({ ...draft, date: event.target.value })} type="date" value={draft.date} />
-        </label>
+        {isAdmin ? (
+          <>
+            <label>Status
+              <select onChange={(event) => setDraft({ ...draft, status: event.target.value })} value={draft.status}>
+                {["Placed", "Confirmed", "Packed", "Shipped", "Delivered", "Cancelled"].map((value) => <option key={value}>{value}</option>)}
+              </select>
+            </label>
+            <label>Date
+              <input onChange={(event) => setDraft({ ...draft, date: event.target.value })} type="date" value={draft.date} />
+            </label>
+          </>
+        ) : null}
         <Metric label="Order total" value={formatINR(draft.total)} />
       </div>
     </form>
@@ -1291,14 +1289,14 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function createOrderDraft(product: Product | undefined, rate: GoldRate): Order {
+function createOrderDraft(product: Product | undefined, rate: GoldRate, isAdmin: boolean): Order {
   return {
     id: `ORD-${Date.now().toString().slice(-6)}`,
-    customer: "Walk-in Customer",
-    phone: "9999999999",
+    customer: isAdmin ? "Walk-in Customer" : "My order",
+    phone: isAdmin ? "9999999999" : "Local customer",
     productId: product?.id || "",
     qty: 1,
-    payment: "UPI",
+    payment: isAdmin ? "UPI" : "Pending",
     status: "Placed",
     total: product ? calculateProductPrice(product, rate).total : 0,
     date: new Date().toISOString().slice(0, 10)
