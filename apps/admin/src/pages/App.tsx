@@ -35,7 +35,7 @@ const modules = [
 
 type ModuleId = (typeof modules)[number]["id"];
 type CartLine = { productId: string; qty: number };
-type Order = { id: string; customer: string; phone: string; productId: string; qty: number; payment: string; status: string; total: number; date: string };
+type Order = { id: string; customer: string; phone: string; productId: string; qty: number; payment: string; status: string; total: number; date: string; paymentRef?: string };
 type Scheme = { id: string; customer: string; plan: string; monthlyAmount: number; paid: number; maturityDate: string; status: string };
 type Showroom = { id: string; name: string; city: string; address: string; phone: string; hours: string; services: string };
 type NotificationItem = { id: string; title: string; audience: string; channel: string; schedule: string; status: string };
@@ -44,10 +44,12 @@ type AnalyticsNote = { id: string; title: string; metric: string; value: string;
 
 type GenericItem = Scheme | Showroom | NotificationItem | UserRecord | AnalyticsNote;
 type GenericModule = "dashboard" | "schemes" | "showrooms" | "notifications" | "users";
+type SessionUser = { id: string; name: string; phone: string; email: string; city: string; provider: string; role: Role };
 
 const ADMIN_MOBILE = "9876543210";
 const ADMIN_PASSWORD = "admin@123";
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "https://jain-jwellers.onrender.com").replace(/\/$/, "");
+const PAYMENT_QR_URL = "/images/payments/phonepe-qr.png";
 type Role = "admin" | "viewer";
 
 const productTemplate: Product = {
@@ -95,6 +97,7 @@ const defaultAnalytics: AnalyticsNote[] = [
 ];
 
 export function App() {
+  const [sessionUser, setSessionUser] = useState<SessionUser | null>(() => readJson("jj-session-user", null));
   const [role, setRole] = useState<Role | null>(() => {
     const saved = localStorage.getItem("jj-admin-role");
     return saved === "admin" || saved === "viewer" ? saved : null;
@@ -268,7 +271,7 @@ export function App() {
 
   function handleCreateNew() {
     if (active === "orders") {
-      setPlacingOrder(createOrderDraft(products[0], rate, isAdmin));
+      setPlacingOrder(createOrderDraft(products[0], rate, isAdmin, sessionUser));
       setNotice("Fill order details and place the order.");
       return;
     }
@@ -333,14 +336,27 @@ export function App() {
       setNotice("Cart is empty.");
       return;
     }
+    if (!isAdmin) {
+      const line = cart[0];
+      const product = products.find((item) => item.id === line.productId);
+      if (!product) {
+        setNotice("No valid cart products found.");
+        return;
+      }
+      setPlacingOrder({ ...createOrderDraft(product, rate, false, sessionUser), qty: line.qty, total: calculateProductPrice(product, rate).total * line.qty });
+      setCartOpen(false);
+      setActive("orders");
+      setNotice("Complete payment to confirm your order.");
+      return;
+    }
     const today = new Date().toISOString().slice(0, 10);
     const newOrders = cart.flatMap((line, index) => {
       const product = products.find((item) => item.id === line.productId);
       if (!product) return [];
       return [{
         id: `ORD-${Date.now().toString().slice(-6)}-${index + 1}`,
-        customer: isAdmin ? customer : "My order",
-        phone: isAdmin ? phone : "Local customer",
+        customer: isAdmin ? customer : sessionUser?.name || "My order",
+        phone: isAdmin ? phone : sessionUser?.phone || "Local customer",
         productId: product.id,
         qty: line.qty,
         payment: isAdmin ? "UPI" : "Pending",
@@ -415,12 +431,16 @@ export function App() {
     setNotice("Demo data reset with corrected products, images and management records.");
   }
 
+  function handleLogin(nextRole: Role, user: SessionUser) {
+    localStorage.setItem("jj-admin-role", nextRole);
+    localStorage.setItem("jj-session-user", JSON.stringify(user));
+    setSessionUser(user);
+    setOrders(nextRole === "admin" ? readJson("jj-orders", defaultOrders) : readJson("jj-local-orders", []));
+    setRole(nextRole);
+  }
+
   if (!role) {
-    return <LoginScreen onLogin={(nextRole) => {
-      localStorage.setItem("jj-admin-role", nextRole);
-      setOrders(nextRole === "admin" ? readJson("jj-orders", defaultOrders) : readJson("jj-local-orders", []));
-      setRole(nextRole);
-    }} />;
+    return <LoginScreen onLogin={handleLogin} />;
   }
 
   return (
@@ -472,6 +492,8 @@ export function App() {
             </button>
             <button className="button ghost" onClick={() => {
               localStorage.removeItem("jj-admin-role");
+              localStorage.removeItem("jj-session-user");
+              setSessionUser(null);
               setOrders([]);
               setRole(null);
             }} type="button">
@@ -494,6 +516,7 @@ export function App() {
             setDetailProduct={setDetailProduct}
             setEditingProduct={setEditingProduct}
             setNotice={setNotice}
+            sessionUser={sessionUser}
             setActive={setActive}
             setPlacingOrder={setPlacingOrder}
             setProducts={persistProducts}
@@ -551,23 +574,72 @@ export function App() {
   );
 }
 
-function LoginScreen({ onLogin }: { onLogin: (role: Role) => void }) {
+function LoginScreen({ onLogin }: { onLogin: (role: Role, user: SessionUser) => void }) {
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [city, setCity] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
-  function submit(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
+    setError("");
     const normalizedPhone = phone.replace(/\D/g, "");
     if (normalizedPhone === ADMIN_MOBILE && password === ADMIN_PASSWORD) {
-      onLogin("admin");
+      onLogin("admin", {
+        id: "ADMIN",
+        name: "Jain Jewellers Admin",
+        phone: normalizedPhone,
+        email: "admin@jainjewellers.local",
+        city: "",
+        provider: "password",
+        role: "admin"
+      });
       return;
     }
-    if (normalizedPhone.length >= 10 && password.trim().length >= 4) {
-      onLogin("viewer");
+
+    try {
+      const endpoint = mode === "signup" ? "register" : "login";
+      const response = await fetch(`${API_BASE_URL}/auth/${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(mode === "signup"
+          ? { name, phone: normalizedPhone, email, city, password }
+          : { email, password }
+        )
+      });
+      const data = await response.json() as { user?: SessionUser; error?: string };
+      if (!response.ok || !data.user) throw new Error(data.error || "Login failed");
+      onLogin("viewer", { ...data.user, role: "viewer" });
+    } catch (loginError) {
+      setError(loginError instanceof Error ? loginError.message : "Unable to sign in.");
+    }
+  }
+
+  async function googleSignIn() {
+    setError("");
+    if (!googleClientId) {
+      setError("Google sign-in needs VITE_GOOGLE_CLIENT_ID in Vercel. Use email sign-in for now.");
       return;
     }
-    setError("Enter a 10 digit mobile number and at least 4 character password.");
+    const googleEmail = prompt("Enter the Google account email to continue setup:");
+    if (!googleEmail) return;
+    const googleName = prompt("Enter your name:") || googleEmail.split("@")[0];
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: googleName, email: googleEmail })
+      });
+      const data = await response.json() as { user?: SessionUser; error?: string };
+      if (!response.ok || !data.user) throw new Error(data.error || "Google login failed");
+      onLogin("viewer", { ...data.user, role: "viewer" });
+    } catch (loginError) {
+      setError(loginError instanceof Error ? loginError.message : "Unable to sign in with Google.");
+    }
   }
 
   return (
@@ -577,14 +649,32 @@ function LoginScreen({ onLogin }: { onLogin: (role: Role) => void }) {
         <p className="eyebrow">Pure. Trusted. Timeless.</p>
         <h1>Jain Jewellers Login</h1>
         <p className="login-copy">Sign in to browse products, place orders, and view your order history.</p>
-        <label>Mobile number
-          <input inputMode="tel" onChange={(event) => setPhone(event.target.value)} placeholder="Enter mobile number" value={phone} />
+        <div className="segmented">
+          <button className={mode === "signin" ? "active" : ""} onClick={() => setMode("signin")} type="button">Sign in</button>
+          <button className={mode === "signup" ? "active" : ""} onClick={() => setMode("signup")} type="button">Create account</button>
+        </div>
+        {mode === "signup" ? (
+          <>
+            <label>Name
+              <input onChange={(event) => setName(event.target.value)} placeholder="Your full name" value={name} />
+            </label>
+            <label>Mobile number
+              <input inputMode="tel" onChange={(event) => setPhone(event.target.value)} placeholder="Enter mobile number" value={phone} />
+            </label>
+            <label>City
+              <input onChange={(event) => setCity(event.target.value)} placeholder="City" value={city} />
+            </label>
+          </>
+        ) : null}
+        <label>Email
+          <input inputMode="email" onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" value={email} />
         </label>
         <label>Password
           <input onChange={(event) => setPassword(event.target.value)} placeholder="Enter password" type="password" value={password} />
         </label>
         {error ? <div className="error">{error}</div> : null}
-        <button className="button" type="submit">Login</button>
+        <button className="button" type="submit">{mode === "signup" ? "Create account" : "Sign in"}</button>
+        <button className="button ghost" onClick={googleSignIn} type="button">Continue with Google</button>
       </form>
     </main>
   );
@@ -639,6 +729,7 @@ function Products({
   setDetailProduct,
   setEditingProduct,
   setNotice,
+  sessionUser,
   setActive,
   setPlacingOrder,
   setProducts,
@@ -652,6 +743,7 @@ function Products({
   setDetailProduct: (product: Product) => void;
   setEditingProduct: (product: Product | null) => void;
   setNotice: (notice: string) => void;
+  sessionUser: SessionUser | null;
   setActive: (module: ModuleId) => void;
   setPlacingOrder: (order: Order) => void;
   setProducts: (products: Product[]) => void;
@@ -738,7 +830,7 @@ function Products({
                       <div className="row-actions">
                         <button className="small-button" onClick={() => addToCart(product.id)} type="button">Cart</button>
                         <button className="small-button" onClick={() => {
-                          setPlacingOrder(createOrderDraft(product, rate, isAdmin));
+                          setPlacingOrder(createOrderDraft(product, rate, isAdmin, sessionUser));
                           setActive("orders");
                         }} type="button">Order</button>
                         <button className="small-button" disabled={!isAdmin} onClick={() => setEditingProduct(product)} type="button">Edit</button>
@@ -991,7 +1083,8 @@ function OrderForm({ isAdmin, onCancel, onSave, order, products, rate }: { isAdm
   return (
     <form className="panel" onSubmit={(event) => {
       event.preventDefault();
-      onSave(isAdmin ? draft : { ...draft, status: "Placed", date: new Date().toISOString().slice(0, 10) });
+      if (!isAdmin && !draft.paymentRef?.trim()) return;
+      onSave(isAdmin ? draft : { ...draft, status: "Confirmed", date: new Date().toISOString().slice(0, 10), payment: "PhonePe / UPI" });
     }}>
       <div className="panel-header">
         <h2>Place order</h2>
@@ -1015,11 +1108,13 @@ function OrderForm({ isAdmin, onCancel, onSave, order, products, rate }: { isAdm
         <label>Quantity
           <input min="1" onChange={(event) => updateQty(Number(event.target.value))} type="number" value={draft.qty} />
         </label>
-        <label>Payment
-          <select onChange={(event) => setDraft({ ...draft, payment: event.target.value })} value={draft.payment}>
-            {["UPI", "Card", "Net Banking", "Cash", "COD"].map((value) => <option key={value}>{value}</option>)}
-          </select>
-        </label>
+        {isAdmin ? (
+          <label>Payment
+            <select onChange={(event) => setDraft({ ...draft, payment: event.target.value })} value={draft.payment}>
+              {["UPI", "Card", "Net Banking", "Cash", "COD"].map((value) => <option key={value}>{value}</option>)}
+            </select>
+          </label>
+        ) : null}
         {isAdmin ? (
           <>
             <label>Status
@@ -1033,6 +1128,18 @@ function OrderForm({ isAdmin, onCancel, onSave, order, products, rate }: { isAdm
           </>
         ) : null}
         <Metric label="Order total" value={formatINR(draft.total)} />
+        {!isAdmin ? (
+          <div className="payment-box">
+            <div>
+              <h3>Complete Payment</h3>
+              <p className="subtext">Scan the PhonePe QR and enter your UPI transaction/reference ID. Your order is confirmed only after payment details are submitted.</p>
+              <label>UPI transaction ID
+                <input onChange={(event) => setDraft({ ...draft, paymentRef: event.target.value })} placeholder="Enter UPI reference number" required value={draft.paymentRef || ""} />
+              </label>
+            </div>
+            <img src={PAYMENT_QR_URL} alt="PhonePe payment QR for Jain Jewellers" />
+          </div>
+        ) : null}
       </div>
     </form>
   );
@@ -1289,15 +1396,15 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function createOrderDraft(product: Product | undefined, rate: GoldRate, isAdmin: boolean): Order {
+function createOrderDraft(product: Product | undefined, rate: GoldRate, isAdmin: boolean, sessionUser: SessionUser | null): Order {
   return {
     id: `ORD-${Date.now().toString().slice(-6)}`,
-    customer: isAdmin ? "Walk-in Customer" : "My order",
-    phone: isAdmin ? "9999999999" : "Local customer",
+    customer: isAdmin ? "Walk-in Customer" : sessionUser?.name || "My order",
+    phone: isAdmin ? "9999999999" : sessionUser?.phone || "Local customer",
     productId: product?.id || "",
     qty: 1,
-    payment: isAdmin ? "UPI" : "Pending",
-    status: "Placed",
+    payment: isAdmin ? "UPI" : "PhonePe / UPI",
+    status: isAdmin ? "Placed" : "Payment pending",
     total: product ? calculateProductPrice(product, rate).total : 0,
     date: new Date().toISOString().slice(0, 10)
   };

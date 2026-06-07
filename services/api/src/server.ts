@@ -5,6 +5,7 @@ import { env } from "./config/env";
 import { catalogueRouter } from "./routes/catalogue";
 import { goldRatesRouter } from "./routes/goldRates";
 import { adminDataRouter } from "./routes/adminData";
+import { authRouter } from "./routes/auth";
 import { healthRouter } from "./routes/health";
 import { productsRouter } from "./routes/products";
 
@@ -15,6 +16,7 @@ app.use(cors());
 app.use(express.json({ limit: "15mb" }));
 
 app.use("/health", healthRouter);
+app.use("/auth", authRouter);
 app.use("/catalogue", catalogueRouter);
 app.use("/gold-rates", goldRatesRouter);
 app.use("/admin-data", adminDataRouter);
