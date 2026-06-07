@@ -588,11 +588,13 @@ function LoginScreen({ onLogin }: { onLogin: (role: Role, user: SessionUser) => 
     event.preventDefault();
     setError("");
     const normalizedPhone = phone.replace(/\D/g, "");
-    if (normalizedPhone === ADMIN_MOBILE && password === ADMIN_PASSWORD) {
+    const normalizedIdentifier = email.replace(/\D/g, "");
+    const adminMobile = mode === "signin" ? normalizedIdentifier : normalizedPhone;
+    if (adminMobile === ADMIN_MOBILE && password === ADMIN_PASSWORD) {
       onLogin("admin", {
         id: "ADMIN",
         name: "Jain Jewellers Admin",
-        phone: normalizedPhone,
+        phone: adminMobile,
         email: "admin@jainjewellers.local",
         city: "",
         provider: "password",
@@ -666,8 +668,8 @@ function LoginScreen({ onLogin }: { onLogin: (role: Role, user: SessionUser) => 
             </label>
           </>
         ) : null}
-        <label>Email
-          <input inputMode="email" onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" value={email} />
+        <label>{mode === "signin" ? "Email or admin mobile" : "Email"}
+          <input inputMode={mode === "signin" ? "text" : "email"} onChange={(event) => setEmail(event.target.value)} placeholder={mode === "signin" ? "Email or admin mobile" : "you@example.com"} value={email} />
         </label>
         <label>Password
           <input onChange={(event) => setPassword(event.target.value)} placeholder="Enter password" type="password" value={password} />
